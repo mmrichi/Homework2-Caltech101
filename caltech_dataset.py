@@ -14,6 +14,31 @@ def pil_loader(path):
         return img.convert('RGB')
 
 
+def make_dataset(directory, class_to_idx):
+    '''
+    for files in **directory** (and sub-directories), matches their paths with their **class_index**
+    only categories inside **class_to_idx** are matched in **instances**
+
+    Returns: 
+        instances: list of tuples (path, class_index)
+    '''
+
+    instances = []
+    directory = os.path.expanduser(directory) # ... + 'Caltech101/101_ObjectCategories'
+    
+    for target_class in sorted(class_to_idx.keys()): # class_to_idx.key() == dir_name == category
+        class_index = class_to_idx[target_class]
+        target_dir = os.path.join(directory, target_class) # ... + 'Caltech101/101_ObjectCategories' + '/[target_dir]'
+        if not os.path.isdir(target_dir): # if exists and is dir 
+            continue
+        for root, _, fnames in sorted(os.walk(target_dir, followlinks=True)): # root, dirs, files = os.walk() generates the file names in a directory tree
+            for fname in sorted(fnames):
+                path = os.path.join(root, fname) # ... + 'Caltech101/101_ObjectCategories' + '/[target_dir]' + '/[fname]'
+                item = path, class_index
+                instances.append(item)
+    return instances # [(path, class_index)]
+
+
 class Caltech(VisionDataset):
     def __init__(self, root, split='train', transform=None, target_transform=None):
         super(Caltech, self).__init__(root, transform=transform, target_transform=target_transform)
@@ -25,10 +50,35 @@ class Caltech(VisionDataset):
         - Here you should implement the logic for reading the splits files and accessing elements
         - If the RAM size allows it, it is faster to store all data in memory
         - PyTorch Dataset classes use indexes to read elements
-        - You should provide a way for the __getitem__ method to access the image-label pair
-          through the index
-        - Labels should start from 0, so for Caltech you will have lables 0...100 (excluding the background class) 
         '''
+
+        classes, class_to_idx = self._find_classes(self.root, 'BACKGROUND_Google')
+        imgs = make_dataset(self.root, class_to_idx) # [(path, class_index)]
+        
+        if len(imgs) == 0:
+            raise (RuntimeError("Found 0 files in subfolders"))
+
+        self.classes = classes
+        self.class_to_idx = class_to_idx
+        self.imgs = imgs
+        self.targets = [s[1] for s in imgs]        
+        
+
+    def _find_classes(self, dir, class_to_filter):
+        '''
+        Args:
+            dir: (str) directory
+            class_to_filter: (str) class to be ignore in the dataset
+        Returns:
+            classes: list of directory names
+            classes_to_idx: {name: id}
+        '''
+
+        classes = [d.name for d in os.scandir(dir) if d.is_dir()]
+        classes.remove(class_to_filter)
+        classes.sort()
+        class_to_idx = {classes[i]: i for i in range(len(classes))}
+        return classes, class_to_idx
 
     def __getitem__(self, index):
         '''
@@ -40,20 +90,21 @@ class Caltech(VisionDataset):
             tuple: (sample, target) where target is class_index of the target class.
         '''
 
-        image, label = ... # Provide a way to access image and label via index
-                           # Image should be a PIL Image
-                           # label can be int
+        path, label = self.imgs[index]
+        image = pil_loader(path)
 
         # Applies preprocessing when accessing the image
         if self.transform is not None:
             image = self.transform(image)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
 
         return image, label
 
     def __len__(self):
         '''
         The __len__ method returns the length of the dataset
-        It is mandatory, as this is used by several other components
         '''
-        length = ... # Provide a way to get the length (number of elements) of the dataset
-        return length
+
+        return len(self.imgs)
