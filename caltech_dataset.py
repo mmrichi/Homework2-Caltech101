@@ -27,7 +27,7 @@ class Caltech(VisionDataset):
         '''
 
         classes, class_to_idx = self._find_classes(self.root, 'BACKGROUND_Google')
-        imgs = self.make_split(self.root, class_to_idx) # [(path, class_index)]
+        imgs = self._make_split(self.root, class_to_idx) # [(path, class_index)]
         
         if len(imgs) == 0:
             raise (RuntimeError("Found 0 files in subfolders"))
@@ -54,7 +54,7 @@ class Caltech(VisionDataset):
         class_to_idx = {classes[i]: i for i in range(len(classes))}
         return classes, class_to_idx
 
-    def _make_dataset(directory, class_to_idx):
+    def _make_dataset(self, directory, class_to_idx):
         '''
         for files in **directory** (and sub-directories), matches their paths with their **class_index**
         only categories inside **class_to_idx** are matched in **instances**
@@ -78,7 +78,7 @@ class Caltech(VisionDataset):
                     instances.append(item)
         return instances # [(path, class_index)]
 
-    def _make_split(directory, class_to_idx):
+    def _make_split(self, directory, class_to_idx):
         path = os.path.expanduser(directory) # ... + 'Caltech101/101_ObjectCategories'
         object_categories_dir = directory.split('/')[1]
         path = path[:-len(object_categories_dir)] # ... + 'Caltech101'
@@ -88,10 +88,10 @@ class Caltech(VisionDataset):
 
         instances = []
         with open(split_path, 'r') as split_file:
-            for file in splitfile.readlines():
+            for file in split_file.readlines():
                 category = file.split('/')[0]
                 if category != 'BACKGROUND_Google':
-                    file_path = directory + '/' + file
+                    file_path = directory + '/' + file[:-1] # [:-1] strips out end of line
                     class_idx = class_to_idx[category]
                     item = file_path, class_idx
                     instances.append(item)
