@@ -6,6 +6,12 @@ import os
 import os.path
 import sys
 
+def group_indices_by_value(tuples):
+    v = {}
+    for index, (_, value) in enumerate(tuples):
+        v.setdefault(value, set()).add(index)
+    
+    return v
 
 def pil_loader(path):
     # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
@@ -36,7 +42,7 @@ class Caltech(VisionDataset):
         self.class_to_idx = class_to_idx
         self.imgs = imgs
         self.targets = [s[1] for s in imgs]        
-        
+        self.indices_by_value = group_indices_by_value(self.imgs)
 
     def _find_classes(self, dir, class_to_filter):
         '''
